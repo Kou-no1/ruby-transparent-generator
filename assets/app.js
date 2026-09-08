@@ -1,9 +1,10 @@
-
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'ruby-transparent-generator:data:v2';
-  const SETTINGS_KEY = 'ruby-transparent-generator:settings:v2';
+  const STORAGE_KEY = 'ruby-transparent-generator:data:v3';
+  const SETTINGS_KEY = 'ruby-transparent-generator:settings:v3';
+  const OLD_STORAGE_KEY = 'ruby-transparent-generator:data:v2';
+  const OLD_SETTINGS_KEY = 'ruby-transparent-generator:settings:v2';
   const SAMPLE_URL = './examples/sample.json';
   const DEFAULTS = { aspectRatio: 'auto', align: 'top-left', padding: 'medium' };
   const PADDING_MAP = { small: 28, medium: 52, large: 84 };
@@ -13,8 +14,8 @@
     '3:4': 3 / 4,
     '16:9': 16 / 9,
     '9:16': 9 / 16,
-    'a-landscape': 1.414,
-    'a-portrait': 1 / 1.414
+    'a-landscape': Math.SQRT2,
+    'a-portrait': 1 / Math.SQRT2
   };
 
   const $ = (id) => document.getElementById(id);
@@ -32,6 +33,7 @@
   let currentData = { blocks: [] };
   let saveTimer = null;
   let blockSettings = {};
+  let previewRefreshToken = 0;
 
   const escapeHtml = (value) => String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -94,6 +96,22 @@
     }
   }
 
+  function normalizeAspect(v) {
+    if (typeof v !== 'string') return null;
+    const s = v.trim();
+    return ['auto','1:1','4:3','3:4','16:9','9:16','a-landscape','a-portrait'].includes(s) ? s : null;
+  }
+  function normalizeAlign(v) {
+    if (typeof v !== 'string') return null;
+    const s = v.trim();
+    return ['top-left','top-center','center-left','center','bottom-left','bottom-center'].includes(s) ? s : null;
+  }
+  function normalizePadding(v) {
+    if (typeof v !== 'string') return null;
+    const s = v.trim();
+    return ['small','medium','large'].includes(s) ? s : null;
+  }
+
   function getRecommendedPreset(block = {}) {
     if (block.export_preset) {
       return {
@@ -117,22 +135,6 @@
     return preset;
   }
 
-  function normalizeAspect(v) {
-    if (typeof v !== 'string') return null;
-    const s = v.trim();
-    return ['auto','1:1','4:3','3:4','16:9','9:16','a-landscape','a-portrait'].includes(s) ? s : null;
-  }
-  function normalizeAlign(v) {
-    if (typeof v !== 'string') return null;
-    const s = v.trim();
-    return ['top-left','top-center','center-left','center','bottom-left','bottom-center'].includes(s) ? s : null;
-  }
-  function normalizePadding(v) {
-    if (typeof v !== 'string') return null;
-    const s = v.trim();
-    return ['small','medium','large'].includes(s) ? s : null;
-  }
-
   function getGlobalDefaults() {
     return {
       aspectRatio: normalizeAspect(els.defaultAspectSelect.value) || DEFAULTS.aspectRatio,
@@ -149,13 +151,14 @@
     return { aspectRatio: preset.aspectRatio, align: preset.align, padding: preset.padding };
   }
 
-  function setBlockOptions(blockId, options) {
+  function setBlockOptions(blockId, options, refresh = true) {
     blockSettings[blockId] = {
       aspectRatio: normalizeAspect(options.aspectRatio) || DEFAULTS.aspectRatio,
       align: normalizeAlign(options.align) || DEFAULTS.align,
       padding: normalizePadding(options.padding) || DEFAULTS.padding
     };
     saveSettings();
+    if (refresh) schedulePreviewRefresh();
   }
 
   function createSelect(options, value, onChange) {
@@ -171,8 +174,23 @@
     return select;
   }
 
+  function labelAspect(v) {
+    return ({'auto':'自動','1:1':'1:1','4:3':'4:3','3:4':'3:4','16:9':'16:9','9:16':'9:16','a-landscape':'A横','a-portrait':'A縦'})[v] || v;
+  }
+  function labelAlign(v) {
+    return ({'top-left':'左上','top-center':'上中央','center-left':'左中央','center':'中央','bottom-left':'左下','bottom-center':'下中央'})[v] || v;
+  }
+  function labelPadding(v) {
+    return ({small:'小', medium:'中', large:'大'})[v] || v;
+  }
+
   function createBlockCard(block) {
     const item = create('article', 'preview-item');
+    item.dataset.blockId = block.id || '';
+
+    const stage = create('div', 'preview-stage auto');
+    const holder = create('div', 'preview-stage-holder');
+    const scaledFrame = create('div', 'preview-scaled-frame');
     const card = create('div', `block-card style-${block.style || 'plain'}`);
     card.dataset.blockId = block.id || '';
     card.appendChild(create('div', 'block-type', escapeHtml(block.type || 'block')));
@@ -181,7 +199,10 @@
     const content = create('div', 'content');
     appendBlockBody(content, block);
     card.appendChild(content);
-    item.appendChild(card);
+    scaledFrame.appendChild(card);
+    holder.appendChild(scaledFrame);
+    stage.appendChild(holder);
+    item.appendChild(stage);
 
     const tools = create('div', 'block-tools');
     const head = create('div', 'tools-head');
@@ -224,20 +245,22 @@
     recBtn.type = 'button';
     recBtn.addEventListener('click', () => {
       const rec = getRecommendedPreset(block);
-      setBlockOptions(block.id, rec);
+      setBlockOptions(block.id, rec, false);
       aspectSelect.value = rec.aspectRatio;
       alignSelect.value = rec.align;
       padSelect.value = rec.padding;
+      schedulePreviewRefresh();
       setStatus(`${block.id} におすすめ設定を適用しました。`, 'success');
     });
     const defaultBtn = create('button', 'button subtle small-btn', '既定を適用');
     defaultBtn.type = 'button';
     defaultBtn.addEventListener('click', () => {
       const defs = getGlobalDefaults();
-      setBlockOptions(block.id, defs);
+      setBlockOptions(block.id, defs, false);
       aspectSelect.value = defs.aspectRatio;
       alignSelect.value = defs.align;
       padSelect.value = defs.padding;
+      schedulePreviewRefresh();
       setStatus(`${block.id} に既定設定を適用しました。`, 'success');
     });
     mini.append(recBtn, defaultBtn);
@@ -256,16 +279,6 @@
     return item;
   }
 
-  function labelAspect(v) {
-    return ({'auto':'自動','1:1':'1:1','4:3':'4:3','3:4':'3:4','16:9':'16:9','9:16':'9:16','a-landscape':'A横','a-portrait':'A縦'})[v] || v;
-  }
-  function labelAlign(v) {
-    return ({'top-left':'左上','top-center':'上中央','center-left':'左中央','center':'中央','bottom-left':'左下','bottom-center':'下中央'})[v] || v;
-  }
-  function labelPadding(v) {
-    return ({small:'小', medium:'中', large:'大'})[v] || v;
-  }
-
   function applyPreviewSettings() {
     const fontSize = Number(els.fontSizeRange.value);
     const lineHeight = Number(els.lineHeightRange.value) / 100;
@@ -276,6 +289,7 @@
     els.fontSizeOutput.textContent = `${fontSize}px`;
     els.lineHeightOutput.textContent = lineHeight.toFixed(2);
     saveSettings();
+    schedulePreviewRefresh();
   }
 
   function ensureBlockSettings() {
@@ -300,6 +314,100 @@
     els.countLabel.textContent = `${blocks.length}ブロック`;
     els.emptyState.hidden = blocks.length !== 0;
     applyPreviewSettings();
+    schedulePreviewRefresh();
+  }
+
+  function schedulePreviewRefresh() {
+    const token = ++previewRefreshToken;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (token !== previewRefreshToken) return;
+      refreshAllPreviewStages();
+    }));
+  }
+
+  function computeFittedCanvas(contentWidth, contentHeight, aspectRatio, padPx) {
+    const minWidth = Math.ceil(contentWidth + padPx * 2);
+    const minHeight = Math.ceil(contentHeight + padPx * 2);
+    const ratio = ASPECT_MAP[aspectRatio];
+    if (!ratio) return { width: minWidth, height: minHeight };
+    let width = minWidth;
+    let height = Math.ceil(width / ratio);
+    if (height < minHeight) {
+      height = minHeight;
+      width = Math.ceil(height * ratio);
+    }
+    return { width, height };
+  }
+
+  function applyPreviewAlignment(holder, align) {
+    holder.className = `preview-stage-holder align-${align}`;
+  }
+
+  function refreshAllPreviewStages() {
+    const items = [...els.previewGrid.querySelectorAll('.preview-item')];
+    items.forEach(item => {
+      const id = item.dataset.blockId || '';
+      const block = currentData.blocks.find(b => (b.id || '') === id) || { id };
+      refreshPreviewStage(item, block);
+    });
+  }
+
+  function refreshPreviewStage(item, block) {
+    const stage = item.querySelector('.preview-stage');
+    const holder = item.querySelector('.preview-stage-holder');
+    const frame = item.querySelector('.preview-scaled-frame');
+    const card = item.querySelector('.block-card');
+    if (!stage || !holder || !frame || !card) return;
+
+    const options = getBlockOptions(block);
+    stage.className = 'preview-stage auto';
+    stage.style.removeProperty('width');
+    stage.style.removeProperty('height');
+    stage.style.removeProperty('--preview-pad');
+    holder.className = 'preview-stage-holder';
+    holder.style.removeProperty('padding');
+    frame.style.removeProperty('width');
+    frame.style.removeProperty('height');
+    card.style.removeProperty('transform');
+    card.style.removeProperty('transform-origin');
+    card.style.width = '100%';
+
+    const naturalWidth = Math.max(260, Math.floor(stage.clientWidth || item.clientWidth || 360));
+    card.style.width = `${naturalWidth}px`;
+    const naturalHeight = Math.ceil(card.getBoundingClientRect().height);
+    card.dataset.naturalWidth = String(naturalWidth);
+    card.dataset.naturalHeight = String(naturalHeight);
+
+    if (options.aspectRatio === 'auto') {
+      stage.className = 'preview-stage auto';
+      stage.style.width = '100%';
+      frame.style.width = '100%';
+      frame.style.height = 'auto';
+      card.style.width = '100%';
+      return;
+    }
+
+    const padPx = PADDING_MAP[options.padding] || PADDING_MAP.medium;
+    const dims = computeFittedCanvas(naturalWidth, naturalHeight, options.aspectRatio, padPx);
+    const availableWidth = Math.max(260, item.clientWidth || 360);
+    const maxPreviewHeight = 560;
+    const previewScale = Math.min(availableWidth / dims.width, maxPreviewHeight / dims.height, 1);
+    const displayWidth = Math.max(120, Math.round(dims.width * previewScale));
+    const displayHeight = Math.max(120, Math.round(dims.height * previewScale));
+    const contentDisplayWidth = naturalWidth * previewScale;
+    const contentDisplayHeight = naturalHeight * previewScale;
+
+    stage.className = 'preview-stage fixed-ratio';
+    stage.style.width = `${displayWidth}px`;
+    stage.style.height = `${displayHeight}px`;
+    stage.style.marginInline = 'auto';
+    holder.style.padding = `${padPx * previewScale}px`;
+    applyPreviewAlignment(holder, options.align);
+    frame.style.width = `${contentDisplayWidth}px`;
+    frame.style.height = `${contentDisplayHeight}px`;
+    card.style.width = `${naturalWidth}px`;
+    card.style.transformOrigin = 'top left';
+    card.style.transform = `scale(${previewScale})`;
   }
 
   function scheduleSave() {
@@ -333,7 +441,7 @@
 
   function restoreSettings() {
     try {
-      const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || localStorage.getItem(OLD_SETTINGS_KEY) || '{}');
       if (saved.scale) els.scaleSelect.value = saved.scale;
       if (saved.fontSize) els.fontSizeRange.value = saved.fontSize;
       if (saved.lineHeight) els.lineHeightRange.value = saved.lineHeight;
@@ -386,14 +494,12 @@
   function nextFrames() {
     return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   }
-  function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
   function collectCssText() {
     let css = '';
     for (const sheet of document.styleSheets) {
       try {
-        for (const rule of sheet.cssRules) css += `${rule.cssText}
-`;
+        for (const rule of sheet.cssRules) css += `${rule.cssText}\n`;
       } catch {}
     }
     return css;
@@ -403,32 +509,18 @@
     const shell = create('div', `export-content-shell ${mode}`);
     if (!els.includeTitleToggle.checked) shell.classList.add('hide-title');
     if (!els.showMetaToggle.checked) shell.classList.add('hide-meta');
-    shell.appendChild(sourceCard.cloneNode(true));
+    const clone = sourceCard.cloneNode(true);
+    clone.style.transform = 'none';
+    clone.style.transformOrigin = 'top left';
+    const naturalWidth = Number(sourceCard.dataset.naturalWidth) || Math.ceil(sourceCard.getBoundingClientRect().width) || 720;
+    clone.style.width = `${naturalWidth}px`;
+    shell.appendChild(clone);
     return shell;
   }
 
-  function computeFittedCanvas(contentWidth, contentHeight, aspectRatio, padPx) {
-    const minWidth = Math.ceil(contentWidth + padPx * 2);
-    const minHeight = Math.ceil(contentHeight + padPx * 2);
-    const ratio = ASPECT_MAP[aspectRatio];
-    if (!ratio) return { width: minWidth, height: minHeight };
-    let width = minWidth;
-    let height = Math.ceil(width / ratio);
-    if (height < minHeight) {
-      height = minHeight;
-      width = Math.ceil(height * ratio);
-    }
-    return { width, height };
-  }
-
-  function buildExportNode(sourceCard, mode, block) {
+  async function buildMeasuredExportNode(sourceCard, mode, block) {
     const content = buildExportContent(sourceCard, mode);
     const options = getBlockOptions(block);
-    return { content, options };
-  }
-
-  async function buildMeasuredExportNode(sourceCard, mode, block) {
-    const { content, options } = buildExportNode(sourceCard, mode, block);
     els.exportRoot.replaceChildren(content);
     await waitForFonts();
     await nextFrames();
@@ -503,6 +595,22 @@
     return blob;
   }
 
+  async function createBlockPng(sourceCard, block, mode) {
+    const scale = Number(els.scaleSelect.value) || 3;
+    const id = block.id || 'block';
+    const options = getBlockOptions(block);
+    const { node } = await buildMeasuredExportNode(sourceCard, mode, block);
+    const blob = await nodeToPngBlob(node, mode === 'transparent', scale);
+    const ratioSuffix = options.aspectRatio === 'auto' ? 'auto' : options.aspectRatio.replace(':','x');
+    const filename = `${safeFilename(id)}__${mode}__${ratioSuffix}@${scale}x.png`;
+    els.exportRoot.replaceChildren();
+    return { blob, filename };
+  }
+
+  function safeFilename(value) {
+    return String(value || 'block').replace(/[\\/:*?"<>|]/g, '_');
+  }
+
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -515,15 +623,11 @@
   }
 
   async function exportBlock(sourceCard, block, mode) {
-    const scale = Number(els.scaleSelect.value) || 3;
     const id = block.id || 'block';
-    const options = getBlockOptions(block);
     setStatus(`${id} を${mode === 'transparent' ? '透過' : 'カード'}PNGに変換中…`);
     try {
-      const { node } = await buildMeasuredExportNode(sourceCard, mode, block);
-      const blob = await nodeToPngBlob(node, mode === 'transparent', scale);
-      const ratioSuffix = options.aspectRatio === 'auto' ? 'auto' : options.aspectRatio;
-      downloadBlob(blob, `${id}__${mode}__${ratioSuffix}@${scale}x.png`);
+      const { blob, filename } = await createBlockPng(sourceCard, block, mode);
+      downloadBlob(blob, filename);
       setStatus(`${id} を保存しました。`, 'success');
     } catch (error) {
       console.error(error);
@@ -533,28 +637,147 @@
     }
   }
 
-  async function exportAll(mode) {
+  // --- minimal uncompressed ZIP writer (no external library required) ---
+  let CRC_TABLE = null;
+  function crcTable() {
+    if (CRC_TABLE) return CRC_TABLE;
+    CRC_TABLE = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      CRC_TABLE[n] = c >>> 0;
+    }
+    return CRC_TABLE;
+  }
+  function crc32(bytes) {
+    const table = crcTable();
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) c = table[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function dosDateTime(date = new Date()) {
+    const year = Math.max(1980, date.getFullYear());
+    const dosTime = ((date.getHours() & 31) << 11) | ((date.getMinutes() & 63) << 5) | ((Math.floor(date.getSeconds() / 2)) & 31);
+    const dosDate = (((year - 1980) & 127) << 9) | (((date.getMonth() + 1) & 15) << 5) | (date.getDate() & 31);
+    return { dosTime, dosDate };
+  }
+  function u16(v) { const a = new Uint8Array(2); new DataView(a.buffer).setUint16(0, v, true); return a; }
+  function u32(v) { const a = new Uint8Array(4); new DataView(a.buffer).setUint32(0, v >>> 0, true); return a; }
+  function concatBytes(parts) {
+    const len = parts.reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(len);
+    let off = 0;
+    for (const p of parts) { out.set(p, off); off += p.length; }
+    return out;
+  }
+  async function makeZipBlob(entries) {
+    const enc = new TextEncoder();
+    const locals = [];
+    const centrals = [];
+    let offset = 0;
+    const { dosTime, dosDate } = dosDateTime();
+
+    for (const entry of entries) {
+      const name = enc.encode(entry.name);
+      const data = new Uint8Array(await entry.blob.arrayBuffer());
+      const crc = crc32(data);
+      const local = concatBytes([
+        u32(0x04034b50), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), name, data
+      ]);
+      locals.push(local);
+      const central = concatBytes([
+        u32(0x02014b50), u16(20), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0),
+        u32(0), u32(offset), name
+      ]);
+      centrals.push(central);
+      offset += local.length;
+    }
+
+    const centralBytes = concatBytes(centrals);
+    const localBytes = concatBytes(locals);
+    const eocd = concatBytes([
+      u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
+      u32(centralBytes.length), u32(localBytes.length), u16(0)
+    ]);
+    return new Blob([localBytes, centralBytes, eocd], { type: 'application/zip' });
+  }
+
+  function defaultZipName(mode) {
+    const meta = currentData.issue_metadata || {};
+    const title = safeFilename(meta.publication || meta.title || 'ruby-blocks');
+    const month = meta.month ? `-${String(meta.month).padStart(2,'0')}` : '';
+    return `${title}${month}__${mode}-png.zip`;
+  }
+
+  async function askZipSaveHandle(mode) {
+    if (!window.showSaveFilePicker) return null;
+    try {
+      return await window.showSaveFilePicker({
+        suggestedName: defaultZipName(mode),
+        types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }]
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') return 'cancelled';
+      console.warn('showSaveFilePicker unavailable:', error);
+      return null;
+    }
+  }
+
+  async function writeZip(zipBlob, handle, filename) {
+    if (handle && handle !== 'cancelled') {
+      const writable = await handle.createWritable();
+      await writable.write(zipBlob);
+      await writable.close();
+      return;
+    }
+    downloadBlob(zipBlob, filename);
+  }
+
+  async function exportAll(mode, saveHandle = null) {
     const cards = [...els.previewGrid.querySelectorAll('.block-card')];
     if (!cards.length) return setStatus('保存するブロックがありません。', 'error');
     const buttons = [els.exportAllTransparentBtn, els.exportAllCardBtn];
     buttons.forEach(button => button.disabled = true);
+    const entries = [];
     try {
-      for (const card of cards) {
+      for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
         const id = card.dataset.blockId || 'block';
         const block = currentData.blocks.find(item => (item.id || '') === id) || { id };
-        await exportBlock(card, block, mode);
-        await sleep(180);
+        setStatus(`ZIP作成中… ${i + 1}/${cards.length}：${id}`);
+        const { blob, filename } = await createBlockPng(card, block, mode);
+        entries.push({ name: filename, blob });
       }
-      setStatus(`全${cards.length}ブロックの保存処理が完了しました。`, 'success');
+      setStatus(`PNG ${entries.length}個をZIPにまとめています…`);
+      const zipBlob = await makeZipBlob(entries);
+      const filename = defaultZipName(mode);
+      await writeZip(zipBlob, saveHandle, filename);
+      setStatus(`ZIPを保存しました（${entries.length}ブロック）。`, 'success');
+    } catch (error) {
+      console.error(error);
+      setStatus(`ZIP保存エラー: ${error.message}`, 'error');
     } finally {
+      els.exportRoot.replaceChildren();
       buttons.forEach(button => button.disabled = false);
     }
+  }
+
+  async function startBatchExport(mode) {
+    // Ask for the save location first while the click still has user activation.
+    const handle = await askZipSaveHandle(mode);
+    if (handle === 'cancelled') {
+      setStatus('ZIP保存をキャンセルしました。');
+      return;
+    }
+    await exportAll(mode, handle);
   }
 
   function applyRecommendedToAll() {
     (currentData.blocks || []).forEach(block => {
       const rec = getRecommendedPreset(block);
-      setBlockOptions(block.id, rec);
+      setBlockOptions(block.id, rec, false);
     });
     render();
     setStatus('おすすめ設定を全ブロックに適用しました。', 'success');
@@ -562,16 +785,14 @@
 
   function applyDefaultsToAll() {
     const defs = getGlobalDefaults();
-    (currentData.blocks || []).forEach(block => {
-      setBlockOptions(block.id, defs);
-    });
+    (currentData.blocks || []).forEach(block => setBlockOptions(block.id, defs, false));
     render();
     setStatus('既定設定を全ブロックに適用しました。', 'success');
   }
 
   function init() {
     restoreSettings();
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(OLD_STORAGE_KEY);
     if (saved) {
       els.jsonInput.value = saved;
       try { currentData = parseInput(); } catch { currentData = { blocks: [] }; }
@@ -609,8 +830,9 @@
 
     els.applyRecommendedBtn.addEventListener('click', applyRecommendedToAll);
     els.applyDefaultsBtn.addEventListener('click', applyDefaultsToAll);
-    els.exportAllTransparentBtn.addEventListener('click', () => exportAll('transparent'));
-    els.exportAllCardBtn.addEventListener('click', () => exportAll('card'));
+    els.exportAllTransparentBtn.addEventListener('click', () => startBatchExport('transparent'));
+    els.exportAllCardBtn.addEventListener('click', () => startBatchExport('card'));
+    window.addEventListener('resize', schedulePreviewRefresh);
     applyPreviewSettings();
   }
 
