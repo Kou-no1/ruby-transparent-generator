@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#16283D">
+  <meta name="description" content="ルビ付き文章を高解像度の透過PNGに変換する静的Webツール">
+  <title>透過ルビジェネレーター</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">科学の芽 制作ツール</p>
+      <h1>透過ルビジェネレーター</h1>
+      <p class="lead">Astraのルビ付きJSONを貼り付けて、文章を高解像度の透過PNGにします。</p>
+    </div>
+    <div class="header-badge">GitHub Pages対応</div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel editor-panel">
+      <section>
+        <div class="section-head">
+          <h2>1. JSONを入力</h2>
+          <span id="saveState" class="save-state">自動保存</span>
+        </div>
+        <p class="hint">Astraが出力した <code>{ "blocks": [...] }</code> をそのまま貼り付けます。</p>
+
+        <div class="input-actions">
+          <label class="file-button">
+            JSONファイルを開く
+            <input id="fileInput" type="file" accept="application/json,.json">
+          </label>
+          <button id="sampleBtn" class="button subtle" type="button">サンプル</button>
+          <button id="clearBtn" class="button subtle danger" type="button">クリア</button>
+        </div>
+
+        <textarea id="jsonInput" spellcheck="false" aria-label="ルビ付きブロックJSON"></textarea>
+        <button id="renderBtn" class="button primary wide" type="button">プレビューを更新</button>
+        <div id="status" class="status" role="status">準備完了</div>
+      </section>
+
+      <section class="settings">
+        <h2>2. PNG設定</h2>
+
+        <label class="setting-row">
+          <span>出力倍率</span>
+          <select id="scaleSelect">
+            <option value="2">2×</option>
+            <option value="3" selected>3×（推奨）</option>
+            <option value="4">4×</option>
+          </select>
+        </label>
+
+        <label class="setting-row">
+          <span>本文サイズ</span>
+          <div class="range-wrap">
+            <input id="fontSizeRange" type="range" min="18" max="42" value="28">
+            <output id="fontSizeOutput">28px</output>
+          </div>
+        </label>
+
+        <label class="setting-row">
+          <span>行間</span>
+          <div class="range-wrap">
+            <input id="lineHeightRange" type="range" min="140" max="220" value="185">
+            <output id="lineHeightOutput">1.85</output>
+          </div>
+        </label>
+
+        <label class="setting-row">
+          <span>文字色</span>
+          <input id="textColor" type="color" value="#16283D">
+        </label>
+
+        <label class="toggle-row">
+          <input id="includeTitleToggle" type="checkbox" checked>
+          <span>タイトルもPNGに含める</span>
+        </label>
+
+        <label class="toggle-row">
+          <input id="showMetaToggle" type="checkbox">
+          <span>ページ・ブロックIDもPNGに含める</span>
+        </label>
+      </section>
+
+      <section>
+        <h2>3. 一括保存</h2>
+        <div class="stack-actions">
+          <button id="exportAllTransparentBtn" class="button accent wide" type="button">全ブロックを透過PNGで保存</button>
+          <button id="exportAllCardBtn" class="button secondary wide" type="button">全ブロックをカードPNGで保存</button>
+        </div>
+        <p class="hint small">ブラウザ設定によっては複数ダウンロードの許可を求められます。</p>
+      </section>
+    </aside>
+
+    <section class="panel preview-panel">
+      <div class="preview-toolbar">
+        <div>
+          <p class="eyebrow">Preview</p>
+          <h2>ルビ本文ブロック</h2>
+        </div>
+        <div id="countLabel" class="count-label">0ブロック</div>
+      </div>
+      <div id="previewGrid" class="preview-grid"></div>
+      <div id="emptyState" class="empty-state" hidden>
+        JSONを入力して「プレビューを更新」を押すと、ここにブロックが表示されます。
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>データはブラウザ内だけで処理され、サーバーには送信されません。</p>
+  </footer>
+
+  <div id="exportRoot" class="export-root" aria-hidden="true"></div>
+</body>
+</html>

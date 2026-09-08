@@ -1,0 +1,114 @@
+{
+  "issue_metadata": {
+    "title": "科学の芽",
+    "theme": "錯覚と脳のふしぎ",
+    "year": 2026,
+    "month": 10,
+    "issue_number": 55
+  },
+  "blocks": [
+    {
+      "id": "p1_lead",
+      "page": 1,
+      "section": "導入",
+      "type": "lead",
+      "title": "はじめに",
+      "style": "lead_box",
+      "content": [
+        {"text":"10","ruby":null},
+        {"text":"月","ruby":"がつ"},
+        {"text":"は、","ruby":null},
+        {"text":"芸術","ruby":"げいじゅつ"},
+        {"text":"の","ruby":null},
+        {"text":"秋","ruby":"あき"},
+        {"text":"です。","ruby":null},
+        {"text":"私","ruby":"わたし"},
+        {"text":"たちの","ruby":null},
+        {"text":"目","ruby":"め"},
+        {"text":"は、まわりから","ruby":null},
+        {"text":"届","ruby":"とど"},
+        {"text":"いた","ruby":null},
+        {"text":"光","ruby":"ひかり"},
+        {"text":"を","ruby":null},
+        {"text":"受","ruby":"う"},
+        {"text":"け","ruby":null},
+        {"text":"取","ruby":"と"},
+        {"text":"っています。","ruby":null}
+      ]
+    },
+    {
+      "id": "p3_steps",
+      "page": 3,
+      "section": "実験",
+      "type": "steps",
+      "title": "じっけんの方法",
+      "style": "experiment_box",
+      "steps": [
+        {
+          "number": "1",
+          "content": [
+            {"text":"白","ruby":"しろ"},
+            {"text":"い","ruby":null},
+            {"text":"紙","ruby":"かみ"},
+            {"text":"に、","ruby":null},
+            {"text":"定規","ruby":"じょうぎ"},
+            {"text":"を","ruby":null},
+            {"text":"使","ruby":"つか"},
+            {"text":"って","ruby":null},
+            {"text":"同","ruby":"おな"},
+            {"text":"じ","ruby":null},
+            {"text":"長","ruby":"なが"},
+            {"text":"さの","ruby":null},
+            {"text":"横線","ruby":"よこせん"},
+            {"text":"を2","ruby":null},
+            {"text":"本","ruby":"ほん"},
+            {"text":"かきます。","ruby":null}
+          ]
+        },
+        {
+          "number": "2",
+          "content": [
+            {"text":"上","ruby":"うえ"},
+            {"text":"の","ruby":null},
+            {"text":"線","ruby":"せん"},
+            {"text":"の","ruby":null},
+            {"text":"両端","ruby":"りょうたん"},
+            {"text":"に、","ruby":null},
+            {"text":"矢羽","ruby":"やばね"},
+            {"text":"のような","ruby":null},
+            {"text":"線","ruby":"せん"},
+            {"text":"を","ruby":null},
+            {"text":"外側","ruby":"そとがわ"},
+            {"text":"へ","ruby":null},
+            {"text":"向","ruby":"む"},
+            {"text":"けてかきます。","ruby":null}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p4_safety",
+      "page": 4,
+      "section": "安全",
+      "type": "safety",
+      "title": "安全のための注意",
+      "style": "safety_box",
+      "items": [
+        [
+          {"text":"実験","ruby":"じっけん"},
+          {"text":"では、ペンや","ruby":null},
+          {"text":"定規","ruby":"じょうぎ"},
+          {"text":"を","ruby":null},
+          {"text":"人","ruby":"ひと"},
+          {"text":"の","ruby":null},
+          {"text":"顔","ruby":"かお"},
+          {"text":"や","ruby":null},
+          {"text":"目","ruby":"め"},
+          {"text":"に","ruby":null},
+          {"text":"向","ruby":"む"},
+          {"text":"けないようにしましょう。","ruby":null}
+        ]
+      ]
+    }
+  ]
+}
