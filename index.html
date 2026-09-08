@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#16283D">
-  <meta name="description" content="ルビ付き文章を高解像度の透過PNGに変換する静的Webツール">
+  <meta name="description" content="ルビ付き文章を高解像度の透過PNGに変換する静的Webツール。縦横比・配置・余白を個別ブロックごとに指定できます。">
   <title>透過ルビジェネレーター</title>
   <link rel="stylesheet" href="assets/styles.css">
   <script defer src="assets/app.js"></script>
@@ -14,7 +14,7 @@
     <div>
       <p class="eyebrow">科学の芽 制作ツール</p>
       <h1>透過ルビジェネレーター</h1>
-      <p class="lead">Astraのルビ付きJSONを貼り付けて、文章を高解像度の透過PNGにします。</p>
+      <p class="lead">Astraのルビ付きJSONを貼り付けて、文章を高解像度の透過PNGにします。各ブロックごとに縦横比・配置・余白を変えられます。</p>
     </div>
     <div class="header-badge">GitHub Pages対応</div>
   </header>
@@ -43,7 +43,7 @@
       </section>
 
       <section class="settings">
-        <h2>2. PNG設定</h2>
+        <h2>2. 全体設定</h2>
 
         <label class="setting-row">
           <span>出力倍率</span>
@@ -86,8 +86,55 @@
         </label>
       </section>
 
+      <section class="settings">
+        <div class="section-head block-head">
+          <h2>3. キャンバス設定</h2>
+          <button id="applyRecommendedBtn" class="button subtle small-btn" type="button">おすすめを全適用</button>
+        </div>
+        <p class="hint small">出力時の縦横比・配置・余白。各ブロックで後から個別調整もできます。</p>
+
+        <label class="setting-row">
+          <span>既定の縦横比</span>
+          <select id="defaultAspectSelect">
+            <option value="auto">自動フィット</option>
+            <option value="1:1">1:1</option>
+            <option value="4:3">4:3</option>
+            <option value="3:4">3:4</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+            <option value="a-landscape">A横（1.414:1）</option>
+            <option value="a-portrait">A縦（1:1.414）</option>
+          </select>
+        </label>
+
+        <label class="setting-row">
+          <span>既定の配置</span>
+          <select id="defaultAlignSelect">
+            <option value="top-left">左上</option>
+            <option value="top-center">上中央</option>
+            <option value="center-left">左中央</option>
+            <option value="center">中央</option>
+            <option value="bottom-left">左下</option>
+            <option value="bottom-center">下中央</option>
+          </select>
+        </label>
+
+        <label class="setting-row">
+          <span>既定の余白</span>
+          <select id="defaultPaddingSelect">
+            <option value="small">小</option>
+            <option value="medium" selected>中</option>
+            <option value="large">大</option>
+          </select>
+        </label>
+
+        <div class="stack-actions compact">
+          <button id="applyDefaultsBtn" class="button secondary wide" type="button">既定設定を全ブロックへ反映</button>
+        </div>
+      </section>
+
       <section>
-        <h2>3. 一括保存</h2>
+        <h2>4. 一括保存</h2>
         <div class="stack-actions">
           <button id="exportAllTransparentBtn" class="button accent wide" type="button">全ブロックを透過PNGで保存</button>
           <button id="exportAllCardBtn" class="button secondary wide" type="button">全ブロックをカードPNGで保存</button>

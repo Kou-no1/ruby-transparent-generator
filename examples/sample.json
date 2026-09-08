@@ -8,6 +8,37 @@
   },
   "blocks": [
     {
+      "id": "p1_lead_title",
+      "page": 1,
+      "section": "表紙",
+      "type": "callout",
+      "title": "大見出し",
+      "style": "callout_box",
+      "content": [
+        {
+          "text": "錯覚",
+          "ruby": "さっかく"
+        },
+        {
+          "text": "と",
+          "ruby": null
+        },
+        {
+          "text": "脳",
+          "ruby": "のう"
+        },
+        {
+          "text": "のふしぎ",
+          "ruby": null
+        }
+      ],
+      "export_preset": {
+        "aspect_ratio": "16:9",
+        "align": "center",
+        "padding": "medium"
+      }
+    },
+    {
       "id": "p1_lead",
       "page": 1,
       "section": "導入",
@@ -15,25 +46,126 @@
       "title": "はじめに",
       "style": "lead_box",
       "content": [
-        {"text":"10","ruby":null},
-        {"text":"月","ruby":"がつ"},
-        {"text":"は、","ruby":null},
-        {"text":"芸術","ruby":"げいじゅつ"},
-        {"text":"の","ruby":null},
-        {"text":"秋","ruby":"あき"},
-        {"text":"です。","ruby":null},
-        {"text":"私","ruby":"わたし"},
-        {"text":"たちの","ruby":null},
-        {"text":"目","ruby":"め"},
-        {"text":"は、まわりから","ruby":null},
-        {"text":"届","ruby":"とど"},
-        {"text":"いた","ruby":null},
-        {"text":"光","ruby":"ひかり"},
-        {"text":"を","ruby":null},
-        {"text":"受","ruby":"う"},
-        {"text":"け","ruby":null},
-        {"text":"取","ruby":"と"},
-        {"text":"っています。","ruby":null}
+        {
+          "text": "10",
+          "ruby": null
+        },
+        {
+          "text": "月",
+          "ruby": "がつ"
+        },
+        {
+          "text": "は、",
+          "ruby": null
+        },
+        {
+          "text": "芸術",
+          "ruby": "げいじゅつ"
+        },
+        {
+          "text": "の",
+          "ruby": null
+        },
+        {
+          "text": "秋",
+          "ruby": "あき"
+        },
+        {
+          "text": "です。",
+          "ruby": null
+        },
+        {
+          "text": "美術館",
+          "ruby": "びじゅつかん"
+        },
+        {
+          "text": "などで、",
+          "ruby": null
+        },
+        {
+          "text": "目",
+          "ruby": "め"
+        },
+        {
+          "text": "を",
+          "ruby": null
+        },
+        {
+          "text": "疑",
+          "ruby": "うたが"
+        },
+        {
+          "text": "うような「だまし",
+          "ruby": null
+        },
+        {
+          "text": "絵",
+          "ruby": "え"
+        },
+        {
+          "text": "」や「",
+          "ruby": null
+        },
+        {
+          "text": "錯視",
+          "ruby": "さくし"
+        },
+        {
+          "text": "」を",
+          "ruby": null
+        },
+        {
+          "text": "見",
+          "ruby": "み"
+        },
+        {
+          "text": "たことはありますか。",
+          "ruby": null
+        }
+      ]
+    },
+    {
+      "id": "p3_materials",
+      "page": 3,
+      "section": "実験",
+      "type": "materials",
+      "title": "準備するもの",
+      "style": "experiment_box",
+      "items": [
+        [
+          {
+            "text": "白",
+            "ruby": "しろ"
+          },
+          {
+            "text": "い",
+            "ruby": null
+          },
+          {
+            "text": "紙",
+            "ruby": "かみ"
+          }
+        ],
+        [
+          {
+            "text": "黒",
+            "ruby": "くろ"
+          },
+          {
+            "text": "い",
+            "ruby": null
+          },
+          {
+            "text": "ペン",
+            "ruby": null
+          }
+        ],
+        [
+          {
+            "text": "定規",
+            "ruby": "じょうぎ"
+          }
+        ]
       ]
     },
     {
@@ -47,41 +179,160 @@
         {
           "number": "1",
           "content": [
-            {"text":"白","ruby":"しろ"},
-            {"text":"い","ruby":null},
-            {"text":"紙","ruby":"かみ"},
-            {"text":"に、","ruby":null},
-            {"text":"定規","ruby":"じょうぎ"},
-            {"text":"を","ruby":null},
-            {"text":"使","ruby":"つか"},
-            {"text":"って","ruby":null},
-            {"text":"同","ruby":"おな"},
-            {"text":"じ","ruby":null},
-            {"text":"長","ruby":"なが"},
-            {"text":"さの","ruby":null},
-            {"text":"横線","ruby":"よこせん"},
-            {"text":"を2","ruby":null},
-            {"text":"本","ruby":"ほん"},
-            {"text":"かきます。","ruby":null}
+            {
+              "text": "白",
+              "ruby": "しろ"
+            },
+            {
+              "text": "い",
+              "ruby": null
+            },
+            {
+              "text": "紙",
+              "ruby": "かみ"
+            },
+            {
+              "text": "に、",
+              "ruby": null
+            },
+            {
+              "text": "同",
+              "ruby": "おな"
+            },
+            {
+              "text": "じ",
+              "ruby": null
+            },
+            {
+              "text": "長",
+              "ruby": "なが"
+            },
+            {
+              "text": "さの",
+              "ruby": null
+            },
+            {
+              "text": "線",
+              "ruby": "せん"
+            },
+            {
+              "text": "を",
+              "ruby": null
+            },
+            {
+              "text": "2",
+              "ruby": null
+            },
+            {
+              "text": "本",
+              "ruby": "ほん"
+            },
+            {
+              "text": "かきます。",
+              "ruby": null
+            }
           ]
         },
         {
           "number": "2",
           "content": [
-            {"text":"上","ruby":"うえ"},
-            {"text":"の","ruby":null},
-            {"text":"線","ruby":"せん"},
-            {"text":"の","ruby":null},
-            {"text":"両端","ruby":"りょうたん"},
-            {"text":"に、","ruby":null},
-            {"text":"矢羽","ruby":"やばね"},
-            {"text":"のような","ruby":null},
-            {"text":"線","ruby":"せん"},
-            {"text":"を","ruby":null},
-            {"text":"外側","ruby":"そとがわ"},
-            {"text":"へ","ruby":null},
-            {"text":"向","ruby":"む"},
-            {"text":"けてかきます。","ruby":null}
+            {
+              "text": "上",
+              "ruby": "うえ"
+            },
+            {
+              "text": "の",
+              "ruby": null
+            },
+            {
+              "text": "線",
+              "ruby": "せん"
+            },
+            {
+              "text": "の",
+              "ruby": null
+            },
+            {
+              "text": "両端",
+              "ruby": "りょうはし"
+            },
+            {
+              "text": "に、",
+              "ruby": null
+            },
+            {
+              "text": "矢羽",
+              "ruby": "やばね"
+            },
+            {
+              "text": "を",
+              "ruby": null
+            },
+            {
+              "text": "外側",
+              "ruby": "そとがわ"
+            },
+            {
+              "text": "へ",
+              "ruby": null
+            },
+            {
+              "text": "向",
+              "ruby": "む"
+            },
+            {
+              "text": "けてかきます。",
+              "ruby": null
+            }
+          ]
+        },
+        {
+          "number": "3",
+          "content": [
+            {
+              "text": "下",
+              "ruby": "した"
+            },
+            {
+              "text": "の",
+              "ruby": null
+            },
+            {
+              "text": "線",
+              "ruby": "せん"
+            },
+            {
+              "text": "の",
+              "ruby": null
+            },
+            {
+              "text": "両端",
+              "ruby": "りょうはし"
+            },
+            {
+              "text": "には、",
+              "ruby": null
+            },
+            {
+              "text": "反対向",
+              "ruby": "はんたいむ"
+            },
+            {
+              "text": "きの",
+              "ruby": null
+            },
+            {
+              "text": "矢羽",
+              "ruby": "やばね"
+            },
+            {
+              "text": "を",
+              "ruby": null
+            },
+            {
+              "text": "かきます。",
+              "ruby": null
+            }
           ]
         }
       ]
@@ -95,18 +346,72 @@
       "style": "safety_box",
       "items": [
         [
-          {"text":"実験","ruby":"じっけん"},
-          {"text":"では、ペンや","ruby":null},
-          {"text":"定規","ruby":"じょうぎ"},
-          {"text":"を","ruby":null},
-          {"text":"人","ruby":"ひと"},
-          {"text":"の","ruby":null},
-          {"text":"顔","ruby":"かお"},
-          {"text":"や","ruby":null},
-          {"text":"目","ruby":"め"},
-          {"text":"に","ruby":null},
-          {"text":"向","ruby":"む"},
-          {"text":"けないようにしましょう。","ruby":null}
+          {
+            "text": "実験",
+            "ruby": "じっけん"
+          },
+          {
+            "text": "で",
+            "ruby": null
+          },
+          {
+            "text": "使",
+            "ruby": "つか"
+          },
+          {
+            "text": "う",
+            "ruby": null
+          },
+          {
+            "text": "道具",
+            "ruby": "どうぐ"
+          },
+          {
+            "text": "は、",
+            "ruby": null
+          },
+          {
+            "text": "安全",
+            "ruby": "あんぜん"
+          },
+          {
+            "text": "なものを",
+            "ruby": null
+          },
+          {
+            "text": "使",
+            "ruby": "つか"
+          },
+          {
+            "text": "いましょう。",
+            "ruby": null
+          }
+        ],
+        [
+          {
+            "text": "目",
+            "ruby": "め"
+          },
+          {
+            "text": "が",
+            "ruby": null
+          },
+          {
+            "text": "疲",
+            "ruby": "つか"
+          },
+          {
+            "text": "れたら、すぐに",
+            "ruby": null
+          },
+          {
+            "text": "休",
+            "ruby": "やす"
+          },
+          {
+            "text": "みましょう。",
+            "ruby": null
+          }
         ]
       ]
     }
