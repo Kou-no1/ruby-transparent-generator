@@ -347,6 +347,16 @@ rt { font-size: .52em; font-weight: 500; line-height: 1; }
   font-size: 12px;
   text-align: center;
 }
+.zip-ready {
+  margin-top: 12px;
+  border: 1px solid #B8C8D4;
+  border-radius: 14px;
+  padding: 12px;
+  background: #F7FAFC;
+}
+.zip-ready strong { display:block; margin-bottom:6px; font-size:13px; }
+.zip-ready-info { margin-bottom:10px; color:var(--muted); font-size:12px; line-height:1.55; }
+
 .export-root {
   position: fixed;
   top: 0;

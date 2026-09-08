@@ -136,10 +136,18 @@
       <section>
         <h2>4. 一括保存</h2>
         <div class="stack-actions">
-          <button id="exportAllTransparentBtn" class="button accent wide" type="button">全ブロックを透過PNG ZIPで保存</button>
-          <button id="exportAllCardBtn" class="button secondary wide" type="button">全ブロックをカードPNG ZIPで保存</button>
+          <button id="exportAllTransparentBtn" class="button accent wide" type="button">透過PNGをZIP生成</button>
+          <button id="exportAllCardBtn" class="button secondary wide" type="button">カードPNGをZIP生成</button>
         </div>
-        <p class="hint small">Chromeでは保存先ダイアログを開き、全PNGを1つのZIPにまとめて保存します。未対応ブラウザでは通常のZIPダウンロードになります。</p>
+        <div id="zipReadyPanel" class="zip-ready" hidden>
+          <strong>ZIPの準備ができました</strong>
+          <div id="zipReadyInfo" class="zip-ready-info"></div>
+          <div class="stack-actions compact">
+            <button id="savePreparedZipBtn" class="button primary wide" type="button">名前を付けてZIP保存</button>
+            <button id="downloadPreparedZipBtn" class="button subtle wide" type="button">通常ダウンロード</button>
+          </div>
+        </div>
+        <p class="hint small">ZIPを完全に生成してサイズ確認してから保存します。生成に失敗しても0KBの空ファイルは作りません。</p>
       </section>
     </aside>
 

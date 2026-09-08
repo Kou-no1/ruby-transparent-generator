@@ -27,12 +27,14 @@
     includeTitleToggle: $('includeTitleToggle'), showMetaToggle: $('showMetaToggle'),
     defaultAspectSelect: $('defaultAspectSelect'), defaultAlignSelect: $('defaultAlignSelect'), defaultPaddingSelect: $('defaultPaddingSelect'),
     applyRecommendedBtn: $('applyRecommendedBtn'), applyDefaultsBtn: $('applyDefaultsBtn'),
-    exportAllTransparentBtn: $('exportAllTransparentBtn'), exportAllCardBtn: $('exportAllCardBtn'), exportRoot: $('exportRoot')
+    exportAllTransparentBtn: $('exportAllTransparentBtn'), exportAllCardBtn: $('exportAllCardBtn'), exportRoot: $('exportRoot'),
+    zipReadyPanel: $('zipReadyPanel'), zipReadyInfo: $('zipReadyInfo'), savePreparedZipBtn: $('savePreparedZipBtn'), downloadPreparedZipBtn: $('downloadPreparedZipBtn')
   };
 
   let currentData = { blocks: [] };
   let saveTimer = null;
   let blockSettings = {};
+  let preparedZip = null;
   let previewRefreshToken = 0;
 
   const escapeHtml = (value) => String(value ?? '')
@@ -711,53 +713,89 @@
     return `${title}${month}__${mode}-png.zip`;
   }
 
-  async function askZipSaveHandle(mode) {
-    if (!window.showSaveFilePicker) return null;
-    try {
-      return await window.showSaveFilePicker({
-        suggestedName: defaultZipName(mode),
-        types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }]
-      });
-    } catch (error) {
-      if (error?.name === 'AbortError') return 'cancelled';
-      console.warn('showSaveFilePicker unavailable:', error);
-      return null;
-    }
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return '-';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   }
 
-  async function writeZip(zipBlob, handle, filename) {
-    if (handle && handle !== 'cancelled') {
-      const writable = await handle.createWritable();
-      await writable.write(zipBlob);
-      await writable.close();
+  function clearPreparedZip() {
+    preparedZip = null;
+    if (els.zipReadyPanel) els.zipReadyPanel.hidden = true;
+    if (els.zipReadyInfo) els.zipReadyInfo.textContent = '';
+  }
+
+  function showPreparedZip(blob, filename, entriesCount) {
+    if (!blob || blob.size <= 22) throw new Error('生成されたZIPが空です。');
+    preparedZip = { blob, filename, entriesCount };
+    els.zipReadyPanel.hidden = false;
+    els.zipReadyInfo.textContent = `${filename} / ${entriesCount}ファイル / ${formatBytes(blob.size)}`;
+  }
+
+  async function savePreparedZipWithPicker() {
+    if (!preparedZip) return setStatus('先にZIPを生成してください。', 'error');
+    const { blob, filename } = preparedZip;
+    if (!window.showSaveFilePicker) {
+      downloadBlob(blob, filename);
+      setStatus(`ZIPをダウンロードしました（${formatBytes(blob.size)}）。`, 'success');
       return;
     }
-    downloadBlob(zipBlob, filename);
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }]
+      });
+      const writable = await handle.createWritable();
+      const buffer = await blob.arrayBuffer();
+      if (!buffer.byteLength) throw new Error('ZIPデータが0バイトです。');
+      await writable.write(new Uint8Array(buffer));
+      await writable.close();
+      setStatus(`ZIPを保存しました（${formatBytes(blob.size)}）。`, 'success');
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        setStatus('ZIP保存をキャンセルしました。');
+        return;
+      }
+      console.error(error);
+      setStatus(`ZIP保存エラー: ${error.message}`, 'error');
+    }
   }
 
-  async function exportAll(mode, saveHandle = null) {
+  function downloadPreparedZip() {
+    if (!preparedZip) return setStatus('先にZIPを生成してください。', 'error');
+    downloadBlob(preparedZip.blob, preparedZip.filename);
+    setStatus(`ZIPをダウンロードしました（${formatBytes(preparedZip.blob.size)}）。`, 'success');
+  }
+
+  async function exportAll(mode) {
     const cards = [...els.previewGrid.querySelectorAll('.block-card')];
     if (!cards.length) return setStatus('保存するブロックがありません。', 'error');
     const buttons = [els.exportAllTransparentBtn, els.exportAllCardBtn];
     buttons.forEach(button => button.disabled = true);
+    clearPreparedZip();
     const entries = [];
     try {
       for (let i = 0; i < cards.length; i++) {
         const card = cards[i];
         const id = card.dataset.blockId || 'block';
         const block = currentData.blocks.find(item => (item.id || '') === id) || { id };
-        setStatus(`ZIP作成中… ${i + 1}/${cards.length}：${id}`);
+        setStatus(`PNG生成中… ${i + 1}/${cards.length}：${id}`);
         const { blob, filename } = await createBlockPng(card, block, mode);
+        if (!blob || blob.size === 0) throw new Error(`${id} のPNG生成結果が0バイトです。`);
         entries.push({ name: filename, blob });
       }
+      if (!entries.length) throw new Error('ZIPに入れるPNGがありません。');
       setStatus(`PNG ${entries.length}個をZIPにまとめています…`);
       const zipBlob = await makeZipBlob(entries);
+      if (!zipBlob || zipBlob.size <= 22) throw new Error('ZIP生成結果が空です。');
       const filename = defaultZipName(mode);
-      await writeZip(zipBlob, saveHandle, filename);
-      setStatus(`ZIPを保存しました（${entries.length}ブロック）。`, 'success');
+      showPreparedZip(zipBlob, filename, entries.length);
+      setStatus(`ZIP生成完了：${entries.length}ファイル / ${formatBytes(zipBlob.size)}。下の保存ボタンを押してください。`, 'success');
     } catch (error) {
       console.error(error);
-      setStatus(`ZIP保存エラー: ${error.message}`, 'error');
+      clearPreparedZip();
+      setStatus(`ZIP生成エラー: ${error.message}`, 'error');
     } finally {
       els.exportRoot.replaceChildren();
       buttons.forEach(button => button.disabled = false);
@@ -765,13 +803,7 @@
   }
 
   async function startBatchExport(mode) {
-    // Ask for the save location first while the click still has user activation.
-    const handle = await askZipSaveHandle(mode);
-    if (handle === 'cancelled') {
-      setStatus('ZIP保存をキャンセルしました。');
-      return;
-    }
-    await exportAll(mode, handle);
+    await exportAll(mode);
   }
 
   function applyRecommendedToAll() {
@@ -832,6 +864,8 @@
     els.applyDefaultsBtn.addEventListener('click', applyDefaultsToAll);
     els.exportAllTransparentBtn.addEventListener('click', () => startBatchExport('transparent'));
     els.exportAllCardBtn.addEventListener('click', () => startBatchExport('card'));
+    els.savePreparedZipBtn.addEventListener('click', savePreparedZipWithPicker);
+    els.downloadPreparedZipBtn.addEventListener('click', downloadPreparedZip);
     window.addEventListener('resize', schedulePreviewRefresh);
     applyPreviewSettings();
   }
