@@ -1,10 +1,10 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'ruby-transparent-generator:data:v3';
-  const SETTINGS_KEY = 'ruby-transparent-generator:settings:v3';
-  const OLD_STORAGE_KEY = 'ruby-transparent-generator:data:v2';
-  const OLD_SETTINGS_KEY = 'ruby-transparent-generator:settings:v2';
+  const STORAGE_KEY = 'ruby-transparent-generator:data:v5';
+  const SETTINGS_KEY = 'ruby-transparent-generator:settings:v5';
+  const OLD_STORAGE_KEY = 'ruby-transparent-generator:data:v3';
+  const OLD_SETTINGS_KEY = 'ruby-transparent-generator:settings:v3';
   const SAMPLE_URL = './examples/sample.json';
   const DEFAULTS = { aspectRatio: 'auto', align: 'top-left', padding: 'medium' };
   const PADDING_MAP = { small: 28, medium: 52, large: 84 };
@@ -597,15 +597,347 @@
     return blob;
   }
 
+  // --- Canvas-direct PNG renderer (v5) ---
+  // SVG/foreignObject を経由せず、ルビ付きテキストを Canvas へ直接描画する。
+  // Chrome の blob SVG 読み込み可否に依存しないため、個別PNGとZIPで同じ安定した経路を使える。
+  const EXPORT_FONT_FAMILY = '"Yu Gothic", "YuGothic", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif';
+  const CARD_COLORS = {
+    plain: '#ffffff', lead_box: '#ffffff', article_box: '#ffffff', callout_box: '#FFF6E8',
+    mini_column_box: '#F5F0FA', experiment_box: '#EEF7EF', note_box: '#FFF8D9',
+    summary_box: '#EFF3F8', trivia_box: '#F9F3E8', safety_box: '#FFF0EC', reference_box: '#F8F8F8'
+  };
+
+  function graphemes(text) {
+    const value = String(text ?? '');
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+      try {
+        return [...new Intl.Segmenter('ja', { granularity: 'grapheme' }).segment(value)].map(x => x.segment);
+      } catch {}
+    }
+    return Array.from(value);
+  }
+
+  function tokenUnits(tokens = []) {
+    const units = [];
+    for (const token of tokens || []) {
+      const base = String(token?.text ?? '');
+      const ruby = token?.ruby == null ? null : String(token.ruby);
+      if (ruby) {
+        units.push({ base, ruby, forcedBreak: false });
+      } else {
+        for (const g of graphemes(base)) {
+          if (g === '\n') units.push({ base: '', ruby: null, forcedBreak: true });
+          else units.push({ base: g, ruby: null, forcedBreak: false });
+        }
+      }
+    }
+    return units;
+  }
+
+  function setCanvasFont(ctx, size, weight = 700) {
+    ctx.font = `${weight} ${size}px ${EXPORT_FONT_FAMILY}`;
+  }
+
+  function measureUnit(ctx, unit, fontSize, rubySize) {
+    setCanvasFont(ctx, fontSize, 700);
+    const baseWidth = ctx.measureText(unit.base || '').width;
+    let rubyWidth = 0;
+    if (unit.ruby) {
+      setCanvasFont(ctx, rubySize, 500);
+      rubyWidth = ctx.measureText(unit.ruby).width;
+    }
+    return Math.max(baseWidth, rubyWidth, 0.01);
+  }
+
+  function layoutRubyLines(ctx, tokens, maxWidth, fontSize, lineHeightRatio) {
+    const rubySize = Math.max(9, fontSize * 0.52);
+    const lineAdvance = Math.max(fontSize * 1.35, fontSize * lineHeightRatio);
+    const units = tokenUnits(tokens);
+    const lines = [];
+    let line = { units: [], width: 0 };
+
+    const pushLine = () => {
+      if (line.units.length) lines.push(line);
+      line = { units: [], width: 0 };
+    };
+
+    for (const unit of units) {
+      if (unit.forcedBreak) {
+        pushLine();
+        continue;
+      }
+      const width = measureUnit(ctx, unit, fontSize, rubySize);
+      if (line.units.length && line.width + width > maxWidth) pushLine();
+      line.units.push({ ...unit, width });
+      line.width += width;
+    }
+    pushLine();
+    return { lines, rubySize, lineAdvance, height: lines.length * lineAdvance };
+  }
+
+  function layoutPlainLines(ctx, text, maxWidth, fontSize, weight = 800, lineHeight = 1.35) {
+    setCanvasFont(ctx, fontSize, weight);
+    const chars = graphemes(String(text ?? ''));
+    const lines = [];
+    let current = '';
+    let width = 0;
+    for (const ch of chars) {
+      if (ch === '\n') {
+        if (current) lines.push({ text: current, width });
+        current = '';
+        width = 0;
+        continue;
+      }
+      const w = ctx.measureText(ch).width;
+      if (current && width + w > maxWidth) {
+        lines.push({ text: current, width });
+        current = ch;
+        width = w;
+      } else {
+        current += ch;
+        width += w;
+      }
+    }
+    if (current) lines.push({ text: current, width });
+    const advance = fontSize * lineHeight;
+    return { lines, advance, height: lines.length * advance };
+  }
+
+  function drawRubyLines(ctx, layout, x, y, color) {
+    let top = y;
+    for (const line of layout.lines) {
+      let cursor = x;
+      for (const unit of line.units) {
+        const center = cursor + unit.width / 2;
+        if (unit.ruby) {
+          setCanvasFont(ctx, layout.rubySize, 500);
+          ctx.fillStyle = color;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(unit.ruby, center, top);
+        }
+        setCanvasFont(ctx, Number(els.fontSizeRange.value) || 28, 700);
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const baseBaseline = top + layout.rubySize + (Number(els.fontSizeRange.value) || 28);
+        ctx.fillText(unit.base, center, baseBaseline);
+        cursor += unit.width;
+      }
+      top += layout.lineAdvance;
+    }
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.closePath();
+  }
+
+  function measureAndBuildCommands(ctx, block, textWidth, mode) {
+    const fontSize = Number(els.fontSizeRange.value) || 28;
+    const lineHeightRatio = (Number(els.lineHeightRange.value) || 185) / 100;
+    const textColor = els.textColor.value || '#16283D';
+    const commands = [];
+    const cardPad = mode === 'card' ? 26 : 2;
+    let y = cardPad;
+    const x = cardPad;
+    const innerWidth = textWidth;
+    const blockWidth = innerWidth + cardPad * 2;
+
+    if (els.showMetaToggle.checked) {
+      const meta = `P${block.page ?? '-'}｜${block.section ?? ''}｜${block.id ?? ''}`;
+      const metaFont = 12;
+      const plain = layoutPlainLines(ctx, meta, innerWidth, metaFont, 700, 1.25);
+      commands.push({ kind: 'plain', layout: plain, x, y, fontSize: metaFont, weight: 700, color: '#66788A' });
+      y += plain.height + 10;
+    }
+
+    if (els.includeTitleToggle.checked && block.title) {
+      const titleFont = fontSize * 1.12;
+      const plain = layoutPlainLines(ctx, block.title, innerWidth, titleFont, 800, 1.28);
+      commands.push({ kind: 'plain', layout: plain, x, y, fontSize: titleFont, weight: 800, color: textColor });
+      y += plain.height + 16;
+    }
+
+    const addRubyParagraph = (tokens, extraGap = 12, offsetX = 0, widthAdjust = 0) => {
+      const layout = layoutRubyLines(ctx, tokens, innerWidth - offsetX - widthAdjust, fontSize, lineHeightRatio);
+      commands.push({ kind: 'ruby', layout, x: x + offsetX, y, color: textColor });
+      y += layout.height + extraGap;
+    };
+
+    if (Array.isArray(block.content) && block.content.length) addRubyParagraph(block.content);
+
+    if (Array.isArray(block.paragraphs)) {
+      block.paragraphs.forEach(par => addRubyParagraph(par));
+    }
+
+    if (Array.isArray(block.items)) {
+      for (const item of block.items) {
+        const bulletFont = fontSize;
+        const indent = fontSize * 1.15;
+        const layout = layoutRubyLines(ctx, item, innerWidth - indent, fontSize, lineHeightRatio);
+        commands.push({ kind: 'bullet', layout, x, y, indent, fontSize: bulletFont, color: textColor });
+        y += layout.height + 10;
+      }
+    }
+
+    if (Array.isArray(block.steps)) {
+      for (const step of block.steps) {
+        const circle = fontSize * 1.45;
+        const gap = 12;
+        const offset = circle + gap;
+        const layout = layoutRubyLines(ctx, step.content || [], innerWidth - offset, fontSize, lineHeightRatio);
+        const stepHeight = Math.max(layout.height, circle + 8);
+        commands.push({ kind: 'step', layout, x, y, offset, circle, number: String(step.number ?? ''), color: textColor });
+        y += stepHeight + 12;
+      }
+    }
+
+    if (commands.length && y > cardPad) y -= 10;
+    const blockHeight = Math.max(1, y + cardPad);
+    return { commands, blockWidth, blockHeight, cardPad, textColor, fontSize, lineHeightRatio };
+  }
+
+  function baseTextWidthForAspect(aspectRatio) {
+    switch (aspectRatio) {
+      case '9:16': return 430;
+      case '3:4':
+      case 'a-portrait': return 560;
+      case '1:1': return 680;
+      case '16:9': return 900;
+      case 'a-landscape': return 840;
+      case '4:3': return 780;
+      default: return 780;
+    }
+  }
+
+  function alignedPoint(canvasW, canvasH, blockW, blockH, pad, align) {
+    const left = pad;
+    const top = pad;
+    const right = canvasW - pad - blockW;
+    const bottom = canvasH - pad - blockH;
+    const centerX = (canvasW - blockW) / 2;
+    const centerY = (canvasH - blockH) / 2;
+    switch (align) {
+      case 'top-center': return { x: centerX, y: top };
+      case 'center-left': return { x: left, y: centerY };
+      case 'center': return { x: centerX, y: centerY };
+      case 'bottom-left': return { x: left, y: bottom };
+      case 'bottom-center': return { x: centerX, y: bottom };
+      default: return { x: left, y: top };
+    }
+  }
+
+  function renderCommands(ctx, measured, originX, originY, mode, block) {
+    if (mode === 'card') {
+      const bg = CARD_COLORS[block.style || 'plain'] || '#ffffff';
+      roundRectPath(ctx, originX, originY, measured.blockWidth, measured.blockHeight, 18);
+      ctx.fillStyle = bg;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#16283D';
+      ctx.stroke();
+    }
+
+    for (const cmd of measured.commands) {
+      const dx = originX + cmd.x;
+      const dy = originY + cmd.y;
+      if (cmd.kind === 'plain') {
+        setCanvasFont(ctx, cmd.fontSize, cmd.weight);
+        ctx.fillStyle = cmd.color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        let yy = dy;
+        for (const line of cmd.layout.lines) {
+          ctx.fillText(line.text, dx, yy);
+          yy += cmd.layout.advance;
+        }
+      } else if (cmd.kind === 'ruby') {
+        drawRubyLines(ctx, cmd.layout, dx, dy, cmd.color);
+      } else if (cmd.kind === 'bullet') {
+        setCanvasFont(ctx, cmd.fontSize, 800);
+        ctx.fillStyle = cmd.color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        const rubySize = cmd.layout.rubySize;
+        ctx.fillText('・', dx, dy + rubySize + cmd.fontSize);
+        drawRubyLines(ctx, cmd.layout, dx + cmd.indent, dy, cmd.color);
+      } else if (cmd.kind === 'step') {
+        const cx = dx + cmd.circle / 2;
+        const cy = dy + cmd.circle / 2 + 4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cmd.circle / 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#E0A106';
+        ctx.fill();
+        setCanvasFont(ctx, cmd.circle * 0.48, 900);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cmd.number, cx, cy + 1);
+        drawRubyLines(ctx, cmd.layout, dx + cmd.offset, dy, cmd.color);
+      }
+    }
+  }
+
+  async function canvasToPngBlob(canvas) {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob || blob.size === 0) throw new Error('CanvasからPNGを生成できませんでした。');
+    return blob;
+  }
+
   async function createBlockPng(sourceCard, block, mode) {
+    await waitForFonts();
     const scale = Number(els.scaleSelect.value) || 3;
     const id = block.id || 'block';
     const options = getBlockOptions(block);
-    const { node } = await buildMeasuredExportNode(sourceCard, mode, block);
-    const blob = await nodeToPngBlob(node, mode === 'transparent', scale);
+
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    if (!measureCtx) throw new Error('Canvas描画コンテキストを作成できませんでした。');
+
+    const textWidth = baseTextWidthForAspect(options.aspectRatio);
+    const measured = measureAndBuildCommands(measureCtx, block, textWidth, mode);
+    const outerPad = options.aspectRatio === 'auto' ? 0 : (PADDING_MAP[options.padding] || PADDING_MAP.medium);
+
+    let logicalW = measured.blockWidth;
+    let logicalH = measured.blockHeight;
+    let origin = { x: 0, y: 0 };
+
+    if (options.aspectRatio !== 'auto') {
+      const dims = computeFittedCanvas(measured.blockWidth, measured.blockHeight, options.aspectRatio, outerPad);
+      logicalW = dims.width;
+      logicalH = dims.height;
+      origin = alignedPoint(logicalW, logicalH, measured.blockWidth, measured.blockHeight, outerPad, options.align);
+    }
+
+    if (logicalW * scale > 16000 || logicalH * scale > 16000) {
+      throw new Error(`出力サイズが大きすぎます（${Math.round(logicalW * scale)}×${Math.round(logicalH * scale)}px）。倍率を下げてください。`);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.ceil(logicalW * scale));
+    canvas.height = Math.max(1, Math.ceil(logicalH * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas描画コンテキストを作成できませんでした。');
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if (mode === 'card') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, logicalW, logicalH);
+    }
+
+    renderCommands(ctx, measured, origin.x, origin.y, mode, block);
+    const blob = await canvasToPngBlob(canvas);
     const ratioSuffix = options.aspectRatio === 'auto' ? 'auto' : options.aspectRatio.replace(':','x');
     const filename = `${safeFilename(id)}__${mode}__${ratioSuffix}@${scale}x.png`;
-    els.exportRoot.replaceChildren();
     return { blob, filename };
   }
 

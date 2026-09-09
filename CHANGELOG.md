@@ -1,3 +1,11 @@
+# v5
+
+- PNG生成を SVG/foreignObject 経由から Canvas 直接描画へ変更
+- 「PNG変換用SVGを読み込めませんでした」を根本回避
+- ルビ、本文、箇条書き、手順番号を Canvas 上に直接描画
+- 個別PNGとZIP一括保存が同一のPNG生成経路を使用
+- 固定縦横比、配置、余白、2x/3x/4xを維持
+
 # Changelog
 
 ## v4

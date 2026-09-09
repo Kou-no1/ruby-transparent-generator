@@ -1,3 +1,8 @@
+# 透過ルビジェネレーター v5
+
+PNG生成は SVG/foreignObject を使わず、Canvasへ直接描画します。
+そのため Chrome で発生していた「PNG変換用SVGを読み込めませんでした」を回避します。
+
 # 透過ルビジェネレーター（GitHub Pages版）
 
 Astraが出力した `blocks` JSON をブラウザで読み込み、
